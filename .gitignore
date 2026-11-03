@@ -1,0 +1,50 @@
+# Build
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+artifacts/
+publish/
+
+# Tests / coverage
+TestResults/
+coverage/
+*.trx
+
+# IDE
+.idea/
+.vs/
+.vscode/*
+!.vscode/extensions.json
+*.user
+*.suo
+*.DotSettings.user
+
+# Local config / secrets
+.env
+.env.*
+!.env-sample
+!.env.sample
+appsettings.*.local.json
+*.pfx
+
+# Front tooling (Tailwind CLI). The built wwwroot/css/app.css IS committed: images and CI need no Node.
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Husky internals (created by `dotnet husky install`)
+.husky/_/
+
+# Local notes
+.instructions
+
+
+
+__pycache__/
+.keys/
+tools/conformance/config.json
+
+# The agent's MCP token made by ./up.sh
+.agent/

@@ -1,0 +1,16 @@
+{
+  "alias": "great-sso",
+  "description": "Great SSO - Basic OP",
+  "server": {
+    "discoveryUrl": "<issuer>/.well-known/openid-configuration"
+  },
+  "client": {
+    "client_id": "conformance-1",
+    "client_secret": "<secret printed by register-clients.sh>"
+  },
+  "client2": {
+    "client_id": "conformance-2",
+    "client_secret": "<secret printed by register-clients.sh>"
+  },
+  "consent": {}
+}

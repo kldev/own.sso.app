@@ -1,0 +1,26 @@
+name: image api
+
+# Pushing a git tag v-api-<version> (e.g. v-api-v1) builds and pushes $REGISTRY/sso-api:<that tag>.
+# The host (apps/Sso.Api). The registry is ghcr.io/<repository owner> unless the repository variable IMAGE_REGISTRY names another.
+on:
+  push:
+    tags: ["v-api-*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing git tag v-api-<version> to build again; the image gets the same tag
+        required: true
+        type: string
+
+jobs:
+  image:
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/_docker-image.yml
+    with:
+      tag: ${{ inputs.tag || github.ref_name }}
+      code: api
+      image: sso-api
+      dockerfile: Dockerfile
+      context: .

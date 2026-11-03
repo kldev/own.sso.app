@@ -1,0 +1,25 @@
+<div class="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border px-6 py-12 text-center">
+    <span class="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        <Icon Name="@IconName" Class="size-5" />
+    </span>
+    <p class="font-semibold">@Title</p>
+    @if (Description is not null)
+    {
+        <p class="max-w-sm text-sm text-muted-foreground">@Description</p>
+    }
+    @ChildContent
+</div>
+
+@code {
+    [Parameter]
+    public string IconName { get; set; } = "list";
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

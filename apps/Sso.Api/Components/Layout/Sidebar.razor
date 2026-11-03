@@ -1,0 +1,37 @@
+@* The sidebar: grouped entries, the brand on top. *@
+<div class="flex h-full flex-col">
+    <div class="flex h-14 items-center border-b border-sidebar-border px-4">
+        <BrandMark />
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-2 py-3 [scrollbar-width:thin]">
+        @foreach (var group in NavItems.Groups)
+        {
+            <div class="mb-4">
+                @if (group.Label is not null)
+                {
+                    <p class="px-2.5 pb-1.5 text-[11px] font-semibold tracking-[0.06em] text-sidebar-foreground/60 uppercase">@group.Label</p>
+                }
+                @foreach (var item in group.Items)
+                {
+                    <NavLink href="@item.Path" @onclick="OnNavigate"
+                             class="group flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent/60 [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                             Match="@(item.Path == "admin" ? NavLinkMatch.All : NavLinkMatch.Prefix)">
+                        <Icon Name="@item.Icon" Class="size-4 shrink-0 opacity-80 group-[.active]:opacity-100" />
+                        <span class="truncate">@item.Label</span>
+                    </NavLink>
+                }
+            </div>
+        }
+    </nav>
+
+    <a href="scalar/" target="_blank" class="flex h-11 items-center gap-2.5 border-t border-sidebar-border px-5 text-sm text-sidebar-foreground/70 hover:text-sidebar-accent-foreground">
+        <Icon Name="external-link" Class="size-4" />
+        <span>API reference</span>
+    </a>
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback OnNavigate { get; set; }
+}

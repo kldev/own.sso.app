@@ -1,0 +1,12 @@
+<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<!-- Team-shared ReSharper/Rider settings, read by `jb inspectcode` too. Every rule change here needs a reason. -->
+	<!-- Add*/Map* extensions return their builder for chaining (dotnet10-standard 8a); the last call of a chain
+	     never uses it, so this rule only reports the fluent-API convention itself. -->
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=UnusedMethodReturnValue_002EGlobal/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<!-- Formatting belongs to CSharpier, which keeps a trailing comma in every broken multi-line list; ReSharper's
+	     default wants it removed, so this rule only reported CSharpier's own output (300+ hints). -->
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=ArrangeTrailingCommaInMultilineLists/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<!-- href="dashboard", action="sign-out": routes of Razor components and minimal API endpoints, not files in wwwroot;
+	     the path check only knows files, so every link of the app would be reported. -->
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=Html_002EPathError/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+</wpf:ResourceDictionary>

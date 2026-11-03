@@ -1,0 +1,29 @@
+@inherits LayoutComponentBase
+@using Microsoft.Extensions.Options
+@inject IOptions<OperatorOptions> Operator
+
+<div class="flex min-h-svh flex-col items-center bg-background px-4 py-10">
+    <main class="flex w-full flex-1 flex-col items-center justify-center">
+        @Body
+    </main>
+    @* Whose service this is - on every public page (OperatorOptions). *@
+    <footer class="mt-10 w-full max-w-md text-center text-xs leading-relaxed text-muted-foreground" data-testid="operator">
+        <p>
+            Great SSO is the sign-in service of
+            <a href="@Operator.Value.Website" class="font-medium text-foreground underline-offset-2 hover:underline">@Operator.Value.Name</a>
+            (@Host(Operator.Value.Website)) for its own applications.
+        </p>
+        <p>
+            It never asks for a password: you sign in on GitHub's, Google's or Microsoft's own page, and only people
+            entered by an SSO admin can sign in.
+        </p>
+        @if (Operator.Value.Contact is { Length: > 0 } contact)
+        {
+            <p>Contact: <a href="mailto:@contact" class="underline-offset-2 hover:underline">@contact</a></p>
+        }
+    </footer>
+</div>
+
+@code {
+    private static string Host(string url) => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host : url;
+}

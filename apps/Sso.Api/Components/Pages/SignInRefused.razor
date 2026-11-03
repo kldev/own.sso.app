@@ -1,0 +1,85 @@
+@page "/sign-in/refused"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@using Sso.Api.Auth.Providers
+@inject SignInRefusals Refusals
+
+<PageTitle>Sign-in refused · Great SSO</PageTitle>
+
+@* One page per reason, each saying what happened and what to do (ADR 0011). Never data of another person. *@
+<div class="w-full max-w-md space-y-6">
+    <div class="flex flex-col items-center gap-4 text-center">
+        <BrandMark TextClass="text-foreground" />
+    </div>
+
+    <div class="card space-y-4 p-6" data-reason="@_reason">
+        <div class="flex items-start gap-3">
+            <span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-warning/20 text-foreground">
+                <Icon Name="shield-alert" Class="size-4.5" />
+            </span>
+            <div class="space-y-1.5">
+                <h1 class="text-lg font-semibold">@Title</h1>
+                <p class="text-sm text-muted-foreground">@Text</p>
+            </div>
+        </div>
+        @if (_refusal?.Account is { Length: > 0 } account)
+        {
+            <div class="flex items-center gap-2.5 rounded-lg bg-muted px-3 py-2 text-sm">
+                <ProviderLogo Provider="@(_refusal.Provider ?? "")" Class="size-4" />
+                <span class="text-muted-foreground">@ProviderName account:</span>
+                <span class="truncate font-medium" data-testid="account">@account</span>
+            </div>
+        }
+        <a href="@($"sign-in?returnUrl={Uri.EscapeDataString(_returnUrl)}")" class="btn btn-primary w-full">Back to sign-in</a>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "r")]
+    private string? Value { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private Refusal? _refusal;
+    private string _reason = "unknown";
+    private string _returnUrl = "/admin";
+
+    protected override void OnInitialized()
+    {
+        _refusal = Refusals.Read(Value);
+        _reason = _refusal?.Reason ?? "unknown";
+        _returnUrl = AuthEndpoints.LocalUrl(ReturnUrl);
+    }
+
+    private string ProviderName => ProviderCatalog.DisplayName(_refusal?.Provider);
+
+    private string Title =>
+        _reason switch
+        {
+            "no_entry" => "There is no Great SSO entry for this account yet",
+            "inactive" => "Your Great SSO access is switched off",
+            "unverified" => "This e-mail address is not verified",
+            "other_account" => "This is not the account linked to you",
+            "personal_account" => "Use your work Microsoft account",
+            "tenant_not_allowed" => "Your organisation is not on the list",
+            "no_tenant" => "Use your work Microsoft account",
+            "provider_not_allowed" => "This application does not use this provider",
+            _ => "Sign-in refused",
+        };
+
+    private string Text =>
+        _reason switch
+        {
+            "no_entry" => $"Ask your SSO admin to add an entry for this {ProviderName} account. Nobody can sign up on their own.",
+            "inactive" => "Ask your SSO admin if you should have access.",
+            "unverified" => $"{ProviderName} has not verified this e-mail address. Verify it there, or ask your SSO admin to enter the address you use.",
+            "other_account" => $"You already sign in with another {ProviderName} account. To change it, ask your SSO admin.",
+            "personal_account" => "Personal Microsoft accounts (outlook.com, hotmail) cannot sign in. Sign in with your organisation's account.",
+            "tenant_not_allowed" => "Microsoft accounts of your organisation cannot sign in to Great SSO. Ask your SSO admin.",
+            "no_tenant" => "Sign in with your organisation's Microsoft account.",
+            "provider_not_allowed" => "Go back and choose one of the providers shown for this application.",
+            _ => "Go back and try again. If it keeps happening, ask your SSO admin.",
+        };
+}

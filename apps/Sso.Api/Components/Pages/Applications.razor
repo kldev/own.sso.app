@@ -1,0 +1,322 @@
+@page "/admin/applications"
+@attribute [Authorize(Policy = AuthPolicies.Admin)]
+@using Microsoft.Extensions.Options
+@using Sso.Api.Oidc
+@using Sso.Api.Auth.Providers
+@using ClientsApi = Sso.ApiClient.Generated.Api.Clients.Clients
+@inject SsoApi Api
+@inject NavigationManager Navigation
+@inject IOptions<OidcOptions> Oidc
+
+<PageTitle>Applications · Great SSO</PageTitle>
+
+<PageHeader Eyebrow="SSO" Title="Applications"
+            Description="The applications that sign people in through SSO (OpenID Connect clients). Each lists the providers it accepts and its exact redirect URIs.">
+    <Actions>
+        <button type="button" class="btn btn-primary" @onclick="OpenCreate"><Icon Name="plus" Class="size-4" /> Register an application</button>
+    </Actions>
+</PageHeader>
+
+<div class="card mb-5 grid gap-3 p-4 text-sm sm:grid-cols-2">
+    <div>
+        <p class="field-label">Issuer (Authority)</p>
+        <p class="font-mono text-[13px] break-all">@Oidc.Value.Issuer</p>
+    </div>
+    <div>
+        <p class="field-label">Discovery</p>
+        <p class="font-mono text-[13px] break-all">@Oidc.Value.Issuer/.well-known/openid-configuration</p>
+    </div>
+</div>
+
+<ErrorAlert Message="@_error" />
+
+@if (_rows is null && _error is null)
+{
+    <div class="h-32 animate-pulse rounded-xl bg-muted"></div>
+}
+else if (_rows is { Count: 0 })
+{
+    <EmptyState IconName="app-window" Title="No application yet" Description="Register the first application that signs people in through SSO." />
+}
+else if (_rows is not null)
+{
+    <div class="card overflow-x-auto">
+        <table class="table">
+            <thead>
+                <tr><th>Application</th><th>Providers</th><th>Redirect URIs</th><th>Status</th><th>Last sign-in</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var client in _rows)
+                {
+                    <tr data-client-id="@client.ClientId">
+                        <td>
+                            <p class="font-medium">@client.Name</p>
+                            <p class="font-mono text-xs text-muted-foreground">@client.ClientId</p>
+                        </td>
+                        <td>
+                            <div class="flex gap-1.5">
+                                @foreach (var provider in client.Providers ?? [])
+                                {
+                                    <span class="badge badge-outline" title="@ProviderCatalog.DisplayName(provider)"><ProviderLogo Provider="@provider" Class="size-3.5" /></span>
+                                }
+                            </div>
+                        </td>
+                        <td class="max-w-xs">
+                            @foreach (var uri in client.RedirectUris ?? [])
+                            {
+                                <p class="truncate font-mono text-xs" title="@uri">@uri</p>
+                            }
+                        </td>
+                        <td><span class="@(client.Status == "active" ? "badge badge-success" : "badge badge-secondary")">@client.Status</span></td>
+                        <td class="whitespace-nowrap text-muted-foreground">@(client.LastSignInAt is null ? "never" : Labels.DateTime(client.LastSignInAt))</td>
+                        <td class="text-right whitespace-nowrap">
+                            <a class="btn btn-ghost btn-sm" href="@($"admin/activity?clientId={Uri.EscapeDataString(client.ClientId ?? "")}")">Activity</a>
+                            <button type="button" class="btn btn-outline btn-sm" @onclick="() => OpenEdit(client)">Edit</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (_form is not null)
+{
+    <Modal Title="@(_form.IsNew ? "Register an application" : _form.Name)"
+           Description="@(_form.IsNew ? "SSO makes the client secret and shows it once - copy it into the application's configuration." : "The client id stays: the application is configured with it.")"
+           OnClose="() => _form = null">
+        <EditForm Model="_form" OnSubmit="SaveAsync" FormName="client" class="space-y-4">
+            <ErrorAlert Message="@_formError" />
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div class="space-y-1.5">
+                    <label class="label" for="c-name">Name</label>
+                    <InputText id="c-name" class="input" @bind-Value="_form.Name" placeholder="Team Handbook" />
+                </div>
+                <div class="space-y-1.5">
+                    <label class="label" for="c-id">Client id</label>
+                    <InputText id="c-id" class="input font-mono" @bind-Value="_form.ClientId" disabled="@(!_form.IsNew)" placeholder="team-handbook" autocomplete="off" autocapitalize="none" spellcheck="false" />
+                </div>
+            </div>
+            <div class="space-y-1.5">
+                <label class="label" for="c-uris">Redirect URIs - one per line, matched exactly</label>
+                <InputTextArea id="c-uris" class="input min-h-24 font-mono text-xs" @bind-Value="_form.RedirectUris" placeholder="https://handbook.example.com/signin-oidc" />
+                <p class="text-xs text-muted-foreground">https, or http only on localhost. ASP.NET Core's handler uses /signin-oidc.</p>
+            </div>
+            <fieldset class="space-y-2">
+                <legend class="label mb-2">People sign in with</legend>
+                <div class="flex flex-wrap gap-2">
+                    @foreach (var provider in ProviderCatalog.All)
+                    {
+                        var key = provider.Key;
+                        <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm has-checked:border-primary has-checked:bg-primary/5">
+                            <input type="checkbox" checked="@_form.Providers.Contains(key)" @onchange="e => _form.Toggle(key, e.Value is true)" />
+                            <ProviderLogo Provider="@key" Class="size-4" /> @provider.DisplayName
+                        </label>
+                    }
+                </div>
+            </fieldset>
+            @if (!_form.IsNew)
+            {
+                <div class="flex flex-wrap gap-2 border-t border-border pt-4">
+                    <button type="button" class="btn btn-outline btn-sm" disabled="@_saving" @onclick="NewSecretAsync"><Icon Name="key-round" Class="size-4" /> New secret</button>
+                    <button type="button" class="btn btn-outline btn-sm" disabled="@_saving" @onclick="ToggleStatusAsync">
+                        @(_form.Status == "active" ? "Switch off" : "Switch on")
+                    </button>
+                </div>
+            }
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" class="btn btn-outline" @onclick="() => _form = null">Cancel</button>
+                <button type="submit" class="btn btn-primary" disabled="@_saving">@(_form.IsNew ? "Register" : "Save")</button>
+            </div>
+        </EditForm>
+    </Modal>
+}
+
+@if (_secret is not null)
+{
+    <Modal Title="The client secret" Description="Shown once - SSO keeps only its hash. Put it in the application's secrets now." OnClose="() => _secret = null">
+        <div class="space-y-4">
+            <div class="grid gap-2 text-sm">
+                <p class="field-label">Client id</p>
+                <p class="rounded-lg bg-muted px-3 py-2 font-mono text-[13px]">@_secret.Value.ClientId</p>
+                <p class="field-label">Client secret</p>
+                <p class="rounded-lg bg-muted px-3 py-2 font-mono text-[13px] break-all" data-testid="secret">@_secret.Value.Secret</p>
+            </div>
+            <div class="flex justify-end">
+                <button type="button" class="btn btn-primary" @onclick="() => _secret = null">I have copied it</button>
+            </div>
+        </div>
+    </Modal>
+}
+
+@code {
+    private sealed class ClientForm
+    {
+        // The id comes from the page (ADR 0006); so does the secret - Great SSO never sees it again after this.
+        public Guid Id { get; init; } = Guid.CreateVersion7();
+        public bool IsNew { get; init; } = true;
+        public long? RowVersion { get; init; }
+        public string ClientId { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string RedirectUris { get; set; } = "";
+        public string Status { get; init; } = "active";
+        public HashSet<string> Providers { get; init; } = ["github", "google"];
+        public string Secret { get; } = Secrets.NewToken();
+
+        public void Toggle(string provider, bool on)
+        {
+            if (on)
+                Providers.Add(provider);
+            else
+                Providers.Remove(provider);
+        }
+
+        public List<string> Uris() =>
+            RedirectUris.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+        public List<string> ProviderList() =>
+            ProviderCatalog.All.Select(p => p.Key).Where(Providers.Contains).ToList();
+    }
+
+    private List<ClientsClientsRow>? _rows;
+    private string? _error;
+    private ClientForm? _form;
+    private string? _formError;
+    private bool _saving;
+    private (string ClientId, string Secret)? _secret;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _rows = (await Api.Api.Clients.Clients.GetAsync(r =>
+            {
+                r.QueryParameters.Sort = ClientsApi.GetSortQueryParameterType.Name;
+                r.QueryParameters.PageSize = 200;
+            }))?.Items ?? [];
+        }
+        catch (Exception ex)
+        {
+            Fail(ex, e => _error = e);
+        }
+    }
+
+    private void OpenCreate()
+    {
+        _form = new ClientForm();
+        _formError = null;
+    }
+
+    private void OpenEdit(ClientsClientsRow row)
+    {
+        _form = new ClientForm
+        {
+            Id = row.Id!.Value,
+            IsNew = false,
+            RowVersion = row.RowVersion,
+            ClientId = row.ClientId ?? "",
+            Name = row.Name ?? "",
+            RedirectUris = string.Join('\n', row.RedirectUris ?? []),
+            Status = row.Status ?? "active",
+            Providers = [.. row.Providers ?? []],
+        };
+        _formError = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_form is null)
+            return;
+        var form = _form;
+        await RunAsync(async () =>
+        {
+            if (form.IsNew)
+            {
+                await Api.Api.Clients.ClientCreate.PostAsync(new ClientsClientCreateRequest
+                {
+                    Id = form.Id,
+                    ClientId = form.ClientId,
+                    Name = form.Name,
+                    RedirectUris = form.Uris(),
+                    Providers = form.ProviderList(),
+                    SecretHash = Secrets.HashText(form.Secret),
+                });
+                _secret = (form.ClientId.Trim().ToLowerInvariant(), form.Secret);
+            }
+            else
+                await Api.Api.Clients.ClientUpdate.PostAsync(new ClientsClientUpdateRequest
+                {
+                    Id = form.Id,
+                    Name = form.Name,
+                    RedirectUris = form.Uris(),
+                    Providers = form.ProviderList(),
+                    RowVersion = form.RowVersion,
+                });
+            _form = null;
+        });
+    }
+
+    private async Task NewSecretAsync()
+    {
+        if (_form is null)
+            return;
+        var form = _form;
+        var secret = Secrets.NewToken();
+        await RunAsync(async () =>
+        {
+            await Api.Api.Clients.ClientSetSecret.PostAsync(new ClientsClientSetSecretRequest
+            {
+                Id = form.Id,
+                SecretHash = Secrets.HashText(secret),
+                RowVersion = form.RowVersion,
+            });
+            _secret = (form.ClientId, secret);
+            _form = null;
+        });
+    }
+
+    private async Task ToggleStatusAsync()
+    {
+        if (_form is null)
+            return;
+        var form = _form;
+        await RunAsync(async () =>
+        {
+            await Api.Api.Clients.ClientSetStatus.PostAsync(new ClientsClientSetStatusRequest
+            {
+                Id = form.Id,
+                Status = form.Status == "active" ? "inactive" : "active",
+                RowVersion = form.RowVersion,
+            });
+            _form = null;
+        });
+    }
+
+    private async Task RunAsync(Func<Task> change)
+    {
+        _saving = true;
+        _formError = null;
+        try
+        {
+            await change();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Fail(ex, e => _formError = e);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Fail(Exception ex, Action<string> show)
+    {
+        if (ApiErrors.IsSessionExpired(ex))
+            Navigation.NavigateTo("auth/session-expired?returnUrl=%2Fadmin%2Fapplications", forceLoad: true);
+        show(ApiErrors.Describe(ex));
+    }
+}

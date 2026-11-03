@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Proof commands: ./verify <group> | ./verify all
+#   schema    db/changelog rules (db/scripts/check-changesets.sh), the EF model without pending changes, and the tests
+#             of the schema: exported changesets = the model, no logic in the database, roles (trait verify=schema)
+#   platform  sessions in the panel, the circuit's bearer, me          (trait verify=platform)
+#   sign-in   providers: linking, refusals, one account per provider  (trait verify=sign-in)
+#   sessions  idle 14 days, absolute 30 days, deactivation           (trait verify=sessions)
+#   people | clients | activity | marketing   the admin's modules     (trait verify=<module>)
+#   oidc      the OpenID Connect provider for the applications        (trait verify=oidc)
+#   web       public and protected pages and assets, Scalar, the API's
+#             OpenAPI document, errors, cross-site writes, API 404s    (trait verify=web)
+#   mcp       the MCP tools for Claude Code                         (trait verify=mcp)
+#   outbox    the outbox and its relay                              (trait verify=outbox)
+#   seed      the seed on start                                     (trait verify=seed)
+#   all       everything above
+# Tests need Docker (Testcontainers: PostgreSQL 18 + Liquibase from db/); the first run builds the Liquibase image.
+# One heavy process at a time (16 GB laptop): build with -m:2, workstation GC.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+groups=(schema platform web sign-in sessions people clients activity marketing oidc mcp outbox seed)
+
+usage() {
+  echo "usage: ./verify <$(IFS='|'; echo "${groups[*]}")|all>" >&2
+  exit 2
+}
+
+[[ $# -eq 1 ]] || usage
+name="$1"
+[[ "$name" == "all" || " ${groups[*]} " == *" $name "* ]] || {
+  echo "unknown group '$name'" >&2
+  usage
+}
+
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker is not running - the tests start PostgreSQL in a container (Testcontainers)." >&2
+  exit 1
+fi
+
+if [[ "$name" == "schema" || "$name" == "all" ]]; then
+  ./db/scripts/check-changesets.sh
+  dotnet tool restore >/dev/null
+  dotnet tool run dotnet-ef migrations has-pending-model-changes --project libs/Sso.Data --startup-project libs/Sso.Data
+fi
+
+filter=()
+[[ "$name" == "all" ]] || filter=(--filter-trait "verify=$name")
+
+dotnet build tests/Sso.Tests -m:2 --nologo -v q
+dotnet build-server shutdown >/dev/null 2>&1 || true
+# Exit code 8 of the test platform = no test matched: a group without tests is a failure, not a pass.
+DOTNET_gcServer=0 dotnet test --project tests/Sso.Tests --no-build -- "${filter[@]}"

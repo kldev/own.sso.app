@@ -1,0 +1,240 @@
+@page "/admin/activity"
+@attribute [Authorize(Policy = AuthPolicies.Admin)]
+@using EventsApi = Sso.ApiClient.Generated.Api.Activity.Events
+@using SessionsApi = Sso.ApiClient.Generated.Api.Activity.Sessions
+@inject SsoApi Api
+@inject NavigationManager Navigation
+
+<PageTitle>Activity · Great SSO</PageTitle>
+
+<PageHeader Eyebrow="SSO" Title="Activity"
+            Description="Every sign-in, link, session and token - kept without tokens, codes or secrets, never deleted. Sessions end after 14 days without use or 30 days at most." />
+
+<div class="mb-4 flex flex-wrap items-center gap-3">
+    <div class="tabs">
+        <button type="button" class="@(_tab == "events" ? "tab tab-active" : "tab")" @onclick="@(() => SwitchAsync("events"))">Log</button>
+        <button type="button" class="@(_tab == "sessions" ? "tab tab-active" : "tab")" @onclick="@(() => SwitchAsync("sessions"))">Sessions</button>
+    </div>
+    <input class="input h-9 w-44 font-mono text-xs" placeholder="username" value="@_username" @onchange="e => FilterAsync(() => _username = Clean(e.Value))" aria-label="Username" />
+    @if (_tab == "events")
+    {
+        <input class="input h-9 w-40 font-mono text-xs" placeholder="client id" value="@_clientId" @onchange="e => FilterAsync(() => _clientId = Clean(e.Value))" aria-label="Client id" />
+        <select class="input h-9 w-44 text-xs" value="@_type" @onchange="e => FilterAsync(() => _type = Clean(e.Value))" aria-label="Event">
+            <option value="">every event</option>
+            @foreach (var type in EventTypes)
+            {
+                <option value="@type">@type</option>
+            }
+        </select>
+        <select class="input h-9 w-32 text-xs" value="@_outcome" @onchange="e => FilterAsync(() => _outcome = Clean(e.Value))" aria-label="Outcome">
+            <option value="">any outcome</option>
+            <option value="success">success</option>
+            <option value="refused">refused</option>
+        </select>
+    }
+    else
+    {
+        <select class="input h-9 w-32 text-xs" value="@_state" @onchange="e => FilterAsync(() => _state = Clean(e.Value))" aria-label="State">
+            <option value="">any state</option>
+            <option value="active">active</option>
+            <option value="ended">ended</option>
+            <option value="expired">expired</option>
+        </select>
+    }
+</div>
+
+<ErrorAlert Message="@_error" />
+
+@if (_tab == "events" && _events is not null)
+{
+    <div class="card overflow-x-auto">
+        <table class="table">
+            <thead><tr><th>When</th><th>Event</th><th>Person</th><th>Application</th><th>Provider</th><th>Address</th></tr></thead>
+            <tbody>
+                @foreach (var e in _events)
+                {
+                    <tr data-event="@e.EventType">
+                        <td class="whitespace-nowrap text-muted-foreground">@Labels.DateTime(e.OccurredAt)</td>
+                        <td>
+                            <span class="@(e.Outcome == "refused" ? "badge badge-destructive" : "badge badge-secondary")">@e.EventType</span>
+                            @if (e.Reason is { Length: > 0 })
+                            {
+                                <span class="ml-1 font-mono text-xs text-muted-foreground">@e.Reason</span>
+                            }
+                        </td>
+                        <td>@(e.DisplayName ?? "-") <span class="font-mono text-xs text-muted-foreground">@e.Username</span></td>
+                        <td class="font-mono text-xs">@e.ClientId</td>
+                        <td>@if (e.Provider is { } p) { <ProviderLogo Provider="@p" Class="size-4" /> }</td>
+                        <td class="font-mono text-xs text-muted-foreground" title="@e.UserAgent">@e.Ip</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else if (_tab == "sessions" && _sessions is not null)
+{
+    <div class="card overflow-x-auto">
+        <table class="table">
+            <thead><tr><th>Person</th><th>Provider</th><th>Started</th><th>Last used</th><th>Ends</th><th>Applications</th><th>State</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var s in _sessions)
+                {
+                    <tr>
+                        <td>@s.DisplayName <span class="font-mono text-xs text-muted-foreground">@s.Username</span></td>
+                        <td>@if (s.Provider is { } p) { <ProviderLogo Provider="@p" Class="size-4" /> }</td>
+                        <td class="whitespace-nowrap text-muted-foreground">@Labels.DateTime(s.CreatedAt)</td>
+                        <td class="whitespace-nowrap text-muted-foreground">@Labels.DateTime(s.LastSeenAt)</td>
+                        <td class="whitespace-nowrap text-muted-foreground">@Labels.DateTime(s.EndedAt ?? s.ExpiresAt)</td>
+                        <td class="font-mono text-xs">@string.Join(", ", s.ClientIds ?? [])</td>
+                        <td>
+                            <span class="@(s.State == "active" ? "badge badge-success" : "badge badge-secondary")">@s.State</span>
+                            @if (s.EndReason is { Length: > 0 })
+                            {
+                                <span class="ml-1 font-mono text-xs text-muted-foreground">@s.EndReason</span>
+                            }
+                        </td>
+                        <td class="text-right">
+                            @if (s.State == "active")
+                            {
+                                <button type="button" class="btn btn-outline btn-sm" disabled="@_saving" @onclick="() => EndAsync(s.Id!.Value)">End</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (_tab == "events" ? _events is { Count: 0 } : _sessions is { Count: 0 })
+{
+    <p class="mt-4 text-sm text-muted-foreground">Nothing matches.</p>
+}
+
+<div class="mt-4 flex items-center justify-end gap-2">
+    <button type="button" class="btn btn-outline btn-sm" disabled="@(_page <= 1)" @onclick="() => PageAsync(-1)"><Icon Name="chevron-left" Class="size-4" /> Newer</button>
+    <span class="text-xs text-muted-foreground">page @_page</span>
+    <button type="button" class="btn btn-outline btn-sm" disabled="@(!_hasMore)" @onclick="() => PageAsync(1)">Older <Icon Name="chevron-right" Class="size-4" /></button>
+</div>
+
+@code {
+    private static readonly string[] EventTypes =
+    [
+        "sign_in", "account_linked", "session_started", "session_extended", "session_expired", "session_ended",
+        "code_issued", "tokens_issued", "token_refreshed", "token", "authorize", "link_removed",
+    ];
+
+    [SupplyParameterFromQuery(Name = "username")]
+    private string? QueryUsername { get; set; }
+
+    [SupplyParameterFromQuery(Name = "clientId")]
+    private string? QueryClientId { get; set; }
+
+    private string _tab = "events";
+    private string? _username;
+    private string? _clientId;
+    private string? _type;
+    private string? _outcome;
+    private string? _state;
+    private int _page = 1;
+    private bool _hasMore;
+    private bool _saving;
+    private string? _error;
+    private List<ActivityEventsRow>? _events;
+    private List<ActivitySessionsRow>? _sessions;
+
+    protected override Task OnInitializedAsync()
+    {
+        _username = Clean(QueryUsername);
+        _clientId = Clean(QueryClientId);
+        return LoadAsync();
+    }
+
+    private static string? Clean(object? value) => value?.ToString()?.Trim() is { Length: > 0 } v ? v : null;
+
+    private Task SwitchAsync(string tab)
+    {
+        _tab = tab;
+        _page = 1;
+        return LoadAsync();
+    }
+
+    private Task FilterAsync(Action change)
+    {
+        change();
+        // A new filter starts from the first page.
+        _page = 1;
+        return LoadAsync();
+    }
+
+    private Task PageAsync(int delta)
+    {
+        _page = Math.Max(1, _page + delta);
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _error = null;
+        try
+        {
+            if (_tab == "events")
+            {
+                var page = await Api.Api.Activity.Events.GetAsync(r =>
+                {
+                    r.QueryParameters.Sort = EventsApi.GetSortQueryParameterType.Id;
+                    r.QueryParameters.Desc = true;
+                    r.QueryParameters.Page = _page;
+                    r.QueryParameters.PageSize = 50;
+                    r.QueryParameters.Username = _username;
+                    r.QueryParameters.ClientId = _clientId;
+                    r.QueryParameters.EventType = _type;
+                    r.QueryParameters.Outcome = _outcome;
+                });
+                _events = page?.Items ?? [];
+                _hasMore = page?.HasMore ?? false;
+            }
+            else
+            {
+                var page = await Api.Api.Activity.Sessions.GetAsync(r =>
+                {
+                    r.QueryParameters.Sort = SessionsApi.GetSortQueryParameterType.CreatedAt;
+                    r.QueryParameters.Desc = true;
+                    r.QueryParameters.Page = _page;
+                    r.QueryParameters.PageSize = 50;
+                    r.QueryParameters.Username = _username;
+                    r.QueryParameters.State = _state;
+                });
+                _sessions = page?.Items ?? [];
+                _hasMore = page?.HasMore ?? false;
+            }
+        }
+        catch (Exception ex)
+        {
+            if (ApiErrors.IsSessionExpired(ex))
+                Navigation.NavigateTo("auth/session-expired?returnUrl=%2Fadmin%2Factivity", forceLoad: true);
+            _error = ApiErrors.Describe(ex);
+        }
+    }
+
+    private async Task EndAsync(Guid id)
+    {
+        _saving = true;
+        try
+        {
+            await Api.Api.Activity.SessionEnd.PostAsync(new ActivitySessionEndRequest { Id = id });
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            if (ApiErrors.IsSessionExpired(ex))
+                Navigation.NavigateTo("auth/session-expired?returnUrl=%2Fadmin%2Factivity", forceLoad: true);
+            _error = ApiErrors.Describe(ex);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

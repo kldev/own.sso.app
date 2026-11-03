@@ -1,0 +1,43 @@
+@* A dialog (shadcn/ui Dialog): overlay, centered card, title, description, body, footer. *@
+@* Closes on a click that starts on the overlay: a drag that begins inside (selecting text) and
+   ends outside is not a click on the overlay. *@
+<div class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+     @onmousedown="() => _pressedOutside = true" @onclick="OverlayClickAsync">
+    <div role="dialog" aria-modal="true" aria-labelledby="modal-title"
+         class="card max-h-[90svh] w-full overflow-y-auto rounded-b-none p-6 shadow-lg sm:max-w-lg sm:rounded-xl"
+         @onmousedown="() => _pressedOutside = false" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true">
+        <div class="mb-4 flex items-start justify-between gap-4">
+            <div class="space-y-1">
+                <h2 id="modal-title" class="text-lg font-semibold">@Title</h2>
+                @if (Description is not null)
+                {
+                    <p class="text-sm text-muted-foreground">@Description</p>
+                }
+            </div>
+            <button type="button" class="btn btn-ghost btn-icon -mt-1 -mr-2" aria-label="Close" @onclick="CloseAsync">
+                <Icon Name="x" />
+            </button>
+        </div>
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private bool _pressedOutside;
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+
+    private Task OverlayClickAsync() => _pressedOutside ? CloseAsync() : Task.CompletedTask;
+}

@@ -1,0 +1,16 @@
+@* A Lucide icon (Components/Ui/LucideIcons.g.cs) - the icon set of the app. *@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="@Class">@((MarkupString)Markup)</svg>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = "";
+
+    [Parameter]
+    public string Class { get; set; } = "size-4";
+
+    private string Markup =>
+        LucideIcons.Markup.TryGetValue(Name, out var markup)
+            ? markup
+            : throw new InvalidOperationException($"Icon '{Name}' is not generated - add it to tools/generate-icons.py.");
+}

@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- What the host and the runner agree on (ADR 0010): the outbox messages and the queue. Plain records, no broker
+       or Wolverine types - the host references it without depending on either. -->
+</Project>

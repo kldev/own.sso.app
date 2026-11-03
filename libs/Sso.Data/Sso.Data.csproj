@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The EF Core model of Great SSO - the source of the schema (ADR 0003): entities, their configuration, the
+       migrations (dotnet ef) that db/scripts/export-ef-migration.sh turns into Liquibase changesets, the audit
+       interceptor and the outbox. Used by the host, the runner and the tests. -->
+  <ItemGroup>
+    <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="JetBrains.Annotations" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Sso.Messaging.Contracts/Sso.Messaging.Contracts.csproj" />
+  </ItemGroup>
+</Project>

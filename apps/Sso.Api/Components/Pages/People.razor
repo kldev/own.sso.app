@@ -1,0 +1,323 @@
+@page "/admin/people"
+@attribute [Authorize(Policy = AuthPolicies.Admin)]
+@using Sso.Api.Auth.Providers
+@using PeopleApi = Sso.ApiClient.Generated.Api.People.People
+@inject SsoApi Api
+@inject NavigationManager Navigation
+
+<PageTitle>People · Great SSO</PageTitle>
+
+<PageHeader Eyebrow="SSO" Title="People"
+            Description="Only the people entered here can sign in - there is no registration. The first sign-in with the e-mail of a provider links that account; later the provider's own id signs in.">
+    <Actions>
+        <button type="button" class="btn btn-primary" @onclick="OpenCreate"><Icon Name="user-plus" Class="size-4" /> Add a person</button>
+    </Actions>
+</PageHeader>
+
+<ErrorAlert Message="@_error" />
+
+@if (_rows is null && _error is null)
+{
+    <div class="h-32 animate-pulse rounded-xl bg-muted"></div>
+}
+else if (_rows is { Count: 0 })
+{
+    <EmptyState IconName="users" Title="Nobody yet" Description="Add the first person who signs in through SSO." />
+}
+else if (_rows is not null)
+{
+    <div class="card overflow-x-auto">
+        <table class="table">
+            <thead>
+                <tr><th>Person</th><th>Accounts</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var person in _rows)
+                {
+                    <tr data-username="@person.Username">
+                        <td>
+                            <div class="flex items-center gap-3">
+                                <Avatar Name="@person.DisplayName" Class="size-8 bg-accent text-xs text-accent-foreground" />
+                                <div class="min-w-0 leading-tight">
+                                    <p class="font-medium">@person.DisplayName</p>
+                                    <p class="text-xs text-muted-foreground"><span class="font-mono">@person.Username</span> · @person.Email</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="flex flex-wrap gap-1.5">
+                                <AccountChip Provider="github" Email="@person.GithubEmail" LinkedAt="@person.GithubLinkedAt" />
+                                <AccountChip Provider="google" Email="@person.GoogleEmail" LinkedAt="@person.GoogleLinkedAt" />
+                                <AccountChip Provider="microsoft" Email="@person.MicrosoftEmail" LinkedAt="@person.MicrosoftLinkedAt" />
+                            </div>
+                        </td>
+                        <td><RoleBadge Role="@person.Role" /></td>
+                        <td><span class="@(person.Status == "active" ? "badge badge-success" : "badge badge-secondary")">@person.Status</span></td>
+                        <td class="whitespace-nowrap text-muted-foreground">@(person.LastSignInAt is null ? "never" : Labels.DateTime(person.LastSignInAt))</td>
+                        <td class="text-right whitespace-nowrap">
+                            <a class="btn btn-ghost btn-sm" href="@($"admin/activity?username={Uri.EscapeDataString(person.Username ?? "")}")">Activity</a>
+                            <button type="button" class="btn btn-outline btn-sm" @onclick="() => OpenEdit(person)">Edit</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (_form is not null)
+{
+    <Modal Title="@(_form.IsNew ? "New person" : _form.DisplayName)"
+           Description="@(_form.IsNew ? "The person signs in with the GitHub, Google or work Microsoft account of these e-mails. Applications receive the username and the work e-mail." : "Changing a provider e-mail removes the linked account at once - its sessions end, and the next sign-in with the new e-mail links the new account.")"
+           OnClose="() => _form = null">
+        <EditForm Model="_form" OnSubmit="SaveAsync" FormName="person" class="space-y-4">
+            <ErrorAlert Message="@_formError" />
+            <div class="space-y-1.5">
+                <label class="label" for="p-name">Name</label>
+                <InputText id="p-name" class="input" @bind-Value="_form.DisplayName" placeholder="Anna Smith" />
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div class="space-y-1.5">
+                    <label class="label" for="p-username">Username</label>
+                    <InputText id="p-username" class="input font-mono" @bind-Value="_form.Username" placeholder="a.smith" autocomplete="off" autocapitalize="none" spellcheck="false" />
+                </div>
+                <div class="space-y-1.5">
+                    <label class="label" for="p-email">Work e-mail</label>
+                    <InputText id="p-email" type="email" class="input" @bind-Value="_form.Email" placeholder="a.smith@example.com" />
+                </div>
+            </div>
+            <fieldset class="space-y-3 rounded-lg border border-border p-4">
+                <legend class="px-1 text-xs font-semibold text-muted-foreground">Accounts the person signs in with</legend>
+                @foreach (var provider in new[] { "github", "google", "microsoft" })
+                {
+                    var key = provider;
+                    <div class="space-y-1.5">
+                        <label class="label flex items-center gap-2" for="@($"p-{key}")">
+                            <ProviderLogo Provider="@key" Class="size-4" />
+                            @ProviderCatalog.DisplayName(key) e-mail
+                            @if (_form.Linked(key) is { } at)
+                            {
+                                <span class="badge badge-success">linked @Labels.DateTime(at)</span>
+                            }
+                        </label>
+                        <div class="flex gap-2">
+                            <input id="@($"p-{key}")" type="email" class="input" value="@_form.Get(key)" @onchange="e => _form.Set(key, e.Value?.ToString())" placeholder="@(key == "microsoft" ? "work account only" : "")" />
+                            @if (!_form.IsNew && _form.Linked(key) is not null)
+                            {
+                                <button type="button" class="btn btn-outline btn-sm h-9 shrink-0" title="Remove the link, keep the e-mail" disabled="@_saving" @onclick="() => UnlinkAsync(key)">
+                                    <Icon Name="unlink" Class="size-4" /> Unlink
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </fieldset>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div class="space-y-1.5">
+                    <label class="label" for="p-role">Role in SSO</label>
+                    <InputSelect id="p-role" class="input" @bind-Value="_form.Role">
+                        <option value="member">Member</option>
+                        <option value="admin">SSO admin</option>
+                    </InputSelect>
+                </div>
+                @if (!_form.IsNew)
+                {
+                    <div class="space-y-1.5">
+                        <span class="label">Status</span>
+                        <button type="button" class="@(_form.Status == "active" ? "btn btn-outline w-full" : "btn btn-secondary w-full")" disabled="@_saving" @onclick="ToggleStatusAsync">
+                            @(_form.Status == "active" ? "Deactivate (ends every session)" : "Activate")
+                        </button>
+                    </div>
+                }
+            </div>
+            <p class="text-xs text-muted-foreground">A member only signs in to applications; an SSO admin also runs this panel. What a person may do in an application comes from their account there.</p>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" class="btn btn-outline" @onclick="() => _form = null">Cancel</button>
+                <button type="submit" class="btn btn-primary" disabled="@_saving">@(_form.IsNew ? "Add" : "Save")</button>
+            </div>
+        </EditForm>
+    </Modal>
+}
+
+@code {
+    private sealed class PersonForm
+    {
+        // The id comes from the page (ADR 0006): a retried request finds the same person.
+        public Guid Id { get; private init; } = Guid.CreateVersion7();
+        public bool IsNew { get; private init; } = true;
+        public long? RowVersion { get; private init; }
+        public string Username { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public string Role { get; set; } = "member";
+        public string Status { get; private init; } = "active";
+        public string? GithubEmail { get; private set; }
+        public string? GoogleEmail { get; private set; }
+        public string? MicrosoftEmail { get; private set; }
+        private DateTimeOffset? GithubLinkedAt { get; init; }
+        private DateTimeOffset? GoogleLinkedAt { get; init; }
+        private DateTimeOffset? MicrosoftLinkedAt { get; init; }
+
+        public string? Get(string provider) =>
+            provider switch { "github" => GithubEmail, "google" => GoogleEmail, _ => MicrosoftEmail };
+
+        public void Set(string provider, string? value)
+        {
+            value = string.IsNullOrWhiteSpace(value) ? null : value;
+            switch (provider)
+            {
+                case "github": GithubEmail = value; break;
+                case "google": GoogleEmail = value; break;
+                default: MicrosoftEmail = value; break;
+            }
+        }
+
+        public DateTimeOffset? Linked(string provider) =>
+            provider switch { "github" => GithubLinkedAt, "google" => GoogleLinkedAt, _ => MicrosoftLinkedAt };
+
+        public static PersonForm From(PeoplePeopleRow row) =>
+            new()
+            {
+                Id = row.Id!.Value,
+                IsNew = false,
+                RowVersion = row.RowVersion,
+                Username = row.Username ?? "",
+                Email = row.Email ?? "",
+                DisplayName = row.DisplayName ?? "",
+                Role = row.Role ?? "member",
+                Status = row.Status ?? "active",
+                GithubEmail = row.GithubEmail,
+                GoogleEmail = row.GoogleEmail,
+                MicrosoftEmail = row.MicrosoftEmail,
+                GithubLinkedAt = row.GithubLinkedAt,
+                GoogleLinkedAt = row.GoogleLinkedAt,
+                MicrosoftLinkedAt = row.MicrosoftLinkedAt,
+            };
+    }
+
+    private List<PeoplePeopleRow>? _rows;
+    private string? _error;
+    private PersonForm? _form;
+    private string? _formError;
+    private bool _saving;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _rows = (await Api.Api.People.People.GetAsync(r =>
+            {
+                r.QueryParameters.Sort = PeopleApi.GetSortQueryParameterType.DisplayName;
+                r.QueryParameters.PageSize = 200;
+            }))?.Items ?? [];
+        }
+        catch (Exception ex)
+        {
+            Fail(ex, e => _error = e);
+        }
+    }
+
+    private void OpenCreate()
+    {
+        _form = new PersonForm();
+        _formError = null;
+    }
+
+    private void OpenEdit(PeoplePeopleRow row)
+    {
+        _form = PersonForm.From(row);
+        _formError = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_form is null)
+            return;
+        await RunAsync(async () =>
+        {
+            if (_form.IsNew)
+                await Api.Api.People.PersonCreate.PostAsync(new PeoplePersonCreateRequest
+                {
+                    Id = _form.Id,
+                    Username = _form.Username,
+                    Email = _form.Email,
+                    DisplayName = _form.DisplayName,
+                    Role = _form.Role,
+                    GithubEmail = _form.GithubEmail,
+                    GoogleEmail = _form.GoogleEmail,
+                    MicrosoftEmail = _form.MicrosoftEmail,
+                });
+            else
+                await Api.Api.People.PersonUpdate.PostAsync(new PeoplePersonUpdateRequest
+                {
+                    Id = _form.Id,
+                    Username = _form.Username,
+                    Email = _form.Email,
+                    DisplayName = _form.DisplayName,
+                    Role = _form.Role,
+                    GithubEmail = _form.GithubEmail,
+                    GoogleEmail = _form.GoogleEmail,
+                    MicrosoftEmail = _form.MicrosoftEmail,
+                    RowVersion = _form.RowVersion,
+                });
+            _form = null;
+        });
+    }
+
+    private async Task ToggleStatusAsync()
+    {
+        if (_form is null)
+            return;
+        var status = _form.Status == "active" ? "inactive" : "active";
+        await RunAsync(async () =>
+        {
+            await Api.Api.People.PersonSetStatus.PostAsync(new PeoplePersonSetStatusRequest
+            {
+                Id = _form.Id,
+                Status = status,
+                RowVersion = _form.RowVersion,
+            });
+            _form = null;
+        });
+    }
+
+    private async Task UnlinkAsync(string provider)
+    {
+        if (_form is null)
+            return;
+        await RunAsync(async () =>
+        {
+            await Api.Api.People.PersonUnlink.PostAsync(new PeoplePersonUnlinkRequest { Id = _form.Id, Provider = provider });
+            _form = null;
+        });
+    }
+
+    /// <summary>One change: the dialog keeps the error; on success the list is loaded again.</summary>
+    private async Task RunAsync(Func<Task> change)
+    {
+        _saving = true;
+        _formError = null;
+        try
+        {
+            await change();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Fail(ex, e => _formError = e);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Fail(Exception ex, Action<string> show)
+    {
+        if (ApiErrors.IsSessionExpired(ex))
+            Navigation.NavigateTo("auth/session-expired?returnUrl=%2Fadmin%2Fpeople", forceLoad: true);
+        show(ApiErrors.Describe(ex));
+    }
+}

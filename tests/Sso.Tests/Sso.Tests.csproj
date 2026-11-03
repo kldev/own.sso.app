@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The API end to end on PostgreSQL 18 with the schema from db/ (Liquibase in a container) - needs Docker. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="JetBrains.Annotations" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../apps/Sso.Api/Sso.Api.csproj" />
+    <ProjectReference Include="../../apps/Sso.DbMigrator/Sso.DbMigrator.csproj" />
+    <ProjectReference Include="../../libs/Sso.Data/Sso.Data.csproj" />
+    <ProjectReference Include="../../libs/Sso.Messaging.Contracts/Sso.Messaging.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

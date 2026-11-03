@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+**/TestResults/
+**/node_modules/
+**/.git
+.husky/
+.idea/
+.vs/
+.vscode/
+**/*.user
+**/.env
+**/.env.*
+db/
+docs/
+tests/
+deploy/
+scripts/

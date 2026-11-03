@@ -1,0 +1,21 @@
+@* A person's account at one provider: nothing when there is no e-mail; linked (the id is known) or waiting for the
+   first sign-in with that e-mail. *@
+@if (Email is { Length: > 0 })
+{
+    <span class="@(LinkedAt is null ? "badge badge-outline gap-1.5" : "badge badge-success gap-1.5")"
+          title="@(LinkedAt is null ? $"{Email} - not linked yet: the first sign-in with this e-mail links it" : $"{Email} - linked {Labels.DateTime(LinkedAt)}")">
+        <ProviderLogo Provider="@Provider" Class="size-3.5" />
+        @(LinkedAt is null ? "waiting" : "linked")
+    </span>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string Provider { get; set; } = "";
+
+    [Parameter]
+    public string? Email { get; set; }
+
+    [Parameter]
+    public DateTimeOffset? LinkedAt { get; set; }
+}

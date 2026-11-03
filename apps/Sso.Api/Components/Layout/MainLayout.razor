@@ -1,0 +1,105 @@
+@inherits LayoutComponentBase
+@inject CurrentUser CurrentUser
+@inject NavigationManager Navigation
+@inject IJSRuntime Js
+
+@if (_me is null)
+{
+    <div class="flex min-h-svh">
+        <div class="hidden h-svh w-62 bg-sidebar md:block"></div>
+        <div class="flex-1 space-y-4 p-6">
+            @if (_error is not null)
+            {
+                <ErrorAlert Message="@_error" />
+            }
+            else
+            {
+                <div class="h-10 w-64 animate-pulse rounded-md bg-muted"></div>
+                <div class="h-32 animate-pulse rounded-xl bg-muted"></div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="flex min-h-svh bg-background">
+        <aside class="sticky top-0 hidden h-svh w-62 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:block">
+            <Sidebar />
+        </aside>
+
+        @if (_menuOpen)
+        {
+            <div class="fixed inset-0 z-40 bg-black/60 md:hidden" @onclick="() => _menuOpen = false">
+                <aside class="h-full w-72 max-w-[85vw] bg-sidebar text-sidebar-foreground" @onclick:stopPropagation="true">
+                    <Sidebar OnNavigate="() => _menuOpen = false" />
+                </aside>
+            </div>
+        }
+
+        <div class="flex min-w-0 flex-1 flex-col">
+            @* The top bar: search on the left, theme and the user on the right. *@
+            <header class="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur md:px-6">
+                <button type="button" class="btn btn-ghost btn-icon md:hidden" aria-label="Menu" @onclick="() => _menuOpen = true">
+                    <Icon Name="menu" Class="size-5" />
+                </button>
+                <label class="relative hidden max-w-md flex-1 sm:block">
+                    <Icon Name="search" Class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <input type="search" class="input bg-card pl-9" placeholder="Search…" disabled title="Search comes with the first module" />
+                </label>
+                <div class="ml-auto flex items-center gap-1">
+                    <button type="button" class="btn btn-ghost btn-icon" aria-label="Change theme" @onclick="ToggleThemeAsync">
+                        <Icon Name="@(_dark ? "sun" : "moon")" />
+                    </button>
+                    <div class="flex items-center gap-2.5 rounded-lg px-2 py-1">
+                        <Avatar Name="@_me.DisplayName" Class="size-8 bg-primary text-xs text-primary-foreground" />
+                        <div class="hidden leading-tight sm:block">
+                            <p class="text-[13px] font-semibold">@_me.DisplayName</p>
+                            <p class="text-xs text-muted-foreground">@_me.Username · @Labels.Role(_me.Role)</p>
+                        </div>
+                    </div>
+                    @* No sign-out: the SSO session ends with its idle or absolute limit, or when an admin ends it (ADR 0011). *@
+                </div>
+            </header>
+
+            <main class="mx-auto w-full max-w-[1920px] px-4 py-5 md:px-6 md:py-6">
+                <CascadingValue Value="_me" IsFixed="true">
+                    @Body
+                </CascadingValue>
+            </main>
+        </div>
+    </div>
+}
+
+@code {
+    private PlatformMeRow? _me;
+    private string? _error;
+    private bool _menuOpen;
+    private bool _dark;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _me = await CurrentUser.GetAsync();
+            if (_me is null)
+                _error = "Your account is not active. Ask an admin.";
+        }
+        catch (Exception ex)
+        {
+            if (ApiErrors.IsSessionExpired(ex))
+                Navigation.NavigateTo("auth/session-expired", forceLoad: true);
+            _error = ApiErrors.Describe(ex);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dark = await Js.InvokeAsync<bool>("ssoTheme.isDark");
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleThemeAsync() => _dark = await Js.InvokeAsync<bool>("ssoTheme.toggle");
+}

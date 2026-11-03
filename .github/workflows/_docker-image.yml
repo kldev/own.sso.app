@@ -1,0 +1,85 @@
+name: docker image (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Git tag to build, v-<code>-<version>; the image gets the same tag
+        required: true
+        type: string
+      code:
+        description: The image's code in the tag (api, migrator, db)
+        required: true
+        type: string
+      latest:
+        description: Also push the `latest` tag
+        required: false
+        type: boolean
+        default: false
+      image:
+        description: Image name under the registry (vars.IMAGE_REGISTRY, default ghcr.io/<owner>)
+        required: true
+        type: string
+      dockerfile:
+        description: Dockerfile path relative to the context
+        required: true
+        type: string
+      context:
+        description: Build context
+        required: false
+        type: string
+        default: .
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ${{ vars.IMAGE_REGISTRY || format('ghcr.io/{0}', github.repository_owner) }}/${{ inputs.image }}
+      REGISTRY_HOST: ${{ vars.IMAGE_REGISTRY_HOST || 'ghcr.io' }}
+    steps:
+      - name: Tag belongs to this image
+        env:
+          TAG: ${{ inputs.tag }}
+          CODE: ${{ inputs.code }}
+        run: |
+          if [[ ! "$TAG" =~ ^v-${CODE}-[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::$TAG is not v-${CODE}-<version>"
+            exit 1
+          fi
+
+      - name: Checkout tag
+        uses: actions/checkout@v5
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+
+      - name: Image tags
+        id: tags
+        run: |
+          image="${IMAGE,,}"
+          tags="$image:${{ inputs.tag }}"
+          if [ "${{ inputs.latest }}" = "true" ]; then tags="$tags,$image:latest"; fi
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY_HOST }}
+          username: ${{ vars.IMAGE_REGISTRY_USER || github.actor }}
+          password: ${{ secrets.IMAGE_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.context }}/${{ inputs.dockerfile }}
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ inputs.tag }}
+          cache-from: type=gha,scope=${{ inputs.image }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.image }}

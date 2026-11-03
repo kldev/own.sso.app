@@ -1,0 +1,200 @@
+# The whole of Great SSO on plain docker compose (./up.sh, ./down.sh, ./logs.sh): PostgreSQL 18, RabbitMQ, MailPit,
+# the database bootstrap around Liquibase (ADR 0003, 0004), the host on http://localhost:6100 and the runner.
+# Nothing in .env is needed: without a provider the host runs with the development sign-in stub and the first start
+# seeds admin@example.com and the demo data (ADR 0015, 0018). Every password here is a local one.
+#
+# Host ports are on 127.0.0.1 only and not the usual ones (5432, 5672, 1025 are often taken by another local stack).
+# The host takes 6100 - the same port as `dotnet run --project apps/Sso.Api`, so stop the container first (./down.sh).
+name: great-sso
+
+x-db-bootstrap: &db-bootstrap
+  # Read by apps/Sso.DbMigrator (prepare before Liquibase, finish after it).
+  ConnectionStrings__postgres: Host=postgres;Port=5432;Database=postgres;Username=postgres;Password=${SSO_PG_ADMIN_PASSWORD:-postgres}
+  Database__Name: sso
+  Database__Migrator: sso_migrator
+  Database__MigratorPassword: ${SSO_MIGRATOR_PASSWORD:-sso_migrator}
+  # Must match the connection strings of api and runner below.
+  Logins__sso_api: ${SSO_API_DB_PASSWORD:-sso_api}
+  Logins__sso_runner: ${SSO_RUNNER_DB_PASSWORD:-sso_runner}
+
+x-rabbitmq: &rabbitmq
+  RabbitMq__Host: rabbitmq
+  RabbitMq__Port: "5672"
+  # Must match the rabbitmq service's default user and vhost.
+  RabbitMq__VirtualHost: sso
+  RabbitMq__UserName: sso
+  RabbitMq__Password: ${SSO_RABBITMQ_PASSWORD:-sso}
+
+services:
+  postgres:
+    image: postgres:18.6-alpine # the same as the tests (tests/Sso.Tests/ApiFixture.cs)
+    container_name: great-sso-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${SSO_PG_ADMIN_PASSWORD:-postgres}
+    shm_size: 256mb
+    ports:
+      - "127.0.0.1:${SSO_PG_PORT:-6132}:5432"
+    volumes:
+      # PostgreSQL 18+ keeps its data in a versioned subdirectory of /var/lib/postgresql.
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks: [sso]
+
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    container_name: great-sso-rabbitmq
+    # Pinned: the node's name rabbit@<hostname> names its data directory on the volume.
+    hostname: great-sso-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: sso
+      RABBITMQ_DEFAULT_PASS: ${SSO_RABBITMQ_PASSWORD:-sso}
+      RABBITMQ_DEFAULT_VHOST: sso
+    ports:
+      - "127.0.0.1:${SSO_RABBITMQ_UI_PORT:-6172}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    restart: unless-stopped
+    networks: [sso]
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: great-sso-mailpit
+    ports:
+      - "127.0.0.1:${SSO_MAILPIT_PORT:-6125}:8025"
+    restart: unless-stopped
+    networks: [sso]
+
+  # 1) The server admin's part before Liquibase: the role sso_migrator and the database sso (idempotent).
+  db-prepare:
+    build:
+      context: .
+      dockerfile: Dockerfile.db-migrator
+    image: great-sso/db-migrator:local
+    command: ["prepare"]
+    environment:
+      <<: *db-bootstrap
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks: [sso]
+
+  # 2) The schema from db/ as the migrator - the same image as the tests. A failed changeset stops everything after it.
+  liquibase:
+    build:
+      context: ./db/docker/liquibase
+    image: sso/liquibase:5.0.4
+    working_dir: /liquibase/workspace
+    command: ["--changelog-file=changelog.yaml", "update"]
+    environment:
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://postgres:5432/sso
+      LIQUIBASE_COMMAND_USERNAME: sso_migrator
+      # The password as a variable, never an argument (ADR 0017).
+      LIQUIBASE_COMMAND_PASSWORD: ${SSO_MIGRATOR_PASSWORD:-sso_migrator}
+    volumes:
+      - ./db:/liquibase/workspace:ro
+    depends_on:
+      db-prepare:
+        condition: service_completed_successfully
+    restart: "no"
+    networks: [sso]
+
+  # 3) After Liquibase: LOGIN and a password for sso_api and sso_runner (created NOLOGIN by the changelog).
+  db-finish:
+    image: great-sso/db-migrator:local
+    pull_policy: never # built by db-prepare
+    command: ["finish"]
+    environment:
+      <<: *db-bootstrap
+    depends_on:
+      liquibase:
+        condition: service_completed_successfully
+    restart: "no"
+    networks: [sso]
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: great-sso/api:local
+    container_name: great-sso-api
+    # Whatever the host's settings .env names (providers, BootstrapAdmin__MicrosoftEmail, Operator__*, ...) - only
+    # what is there, so nothing arrives empty: an empty optional e-mail fails the start's validation. The keys below
+    # win over .env and keep their defaults when .env leaves them empty.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *rabbitmq
+      # Development: the sign-in stub is allowed only there (ADR 0018); up.sh turns it off when .env names a provider.
+      ASPNETCORE_ENVIRONMENT: Development
+      DevSignIn__Enabled: ${DevSignIn__Enabled:-true}
+      ConnectionStrings__sso: Host=postgres;Port=5432;Database=sso;Username=sso_api;Password=${SSO_API_DB_PASSWORD:-sso_api}
+      Oidc__Issuer: http://localhost:${SSO_PORT:-6100}
+      Oidc__KeysPath: /keys/oidc
+      DataProtection__KeysPath: /keys/dataprotection
+      Smtp__Host: mailpit
+      Smtp__Port: "1025"
+      Smtp__Security: None
+      BootstrapAdmin__Username: ${BootstrapAdmin__Username:-admin}
+      BootstrapAdmin__Email: ${BootstrapAdmin__Email:-admin@example.com}
+      BootstrapAdmin__DisplayName: ${BootstrapAdmin__DisplayName:-Admin}
+      BootstrapAdmin__GithubEmail: ${BootstrapAdmin__GithubEmail:-admin@example.com}
+      BootstrapAdmin__GoogleEmail: ${BootstrapAdmin__GoogleEmail:-admin@example.com}
+      Seed__Demo: ${Seed__Demo:-true}
+    ports:
+      - "127.0.0.1:${SSO_PORT:-6100}:8080"
+    volumes:
+      # The OIDC signing keys and the DataProtection keys survive a recreated container.
+      - api_keys:/keys
+    # The image's HEALTHCHECK (dotnet Sso.Api.dll healthcheck -> /health); the seed runs before the server listens.
+    depends_on:
+      db-finish:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: "on-failure:3"
+    networks: [sso]
+
+  runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.runner
+    image: great-sso/runner:local
+    container_name: great-sso-runner
+    environment:
+      <<: *rabbitmq
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__sso: Host=postgres;Port=5432;Database=sso;Username=sso_runner;Password=${SSO_RUNNER_DB_PASSWORD:-sso_runner}
+      # The outbox relay polls every few seconds: its SQL at Information drowns everything else in ./logs.sh.
+      Serilog__MinimumLevel__Override__Microsoft.EntityFrameworkCore.Database.Command: Warning
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    # No healthcheck: the aspnet image has no curl and nobody waits for the runner.
+    depends_on:
+      db-finish:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    restart: "on-failure:3"
+    networks: [sso]
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  api_keys:
+
+networks:
+  sso:

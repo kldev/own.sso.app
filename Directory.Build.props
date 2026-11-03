@@ -1,0 +1,11 @@
+<Project>
+  <!-- Common to every .NET project of Sso - apps/, libs/ and tests/. A project sets here only what differs. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Nothing here goes to a NuGet feed: libraries are shared by source (libs/, ProjectReference). -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+</Project>

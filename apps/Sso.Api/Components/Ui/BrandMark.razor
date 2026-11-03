@@ -1,0 +1,14 @@
+<a href="admin" class="@($"flex items-center gap-2.5 {TextClass} {Class}")">
+    @* Great SSO's logo (wwwroot/img/logo.svg). *@
+    <img src="img/logo.svg" alt="" class="size-8" />
+    <span class="text-[15px] font-semibold tracking-tight">Great SSO</span>
+</a>
+
+@code {
+    [Parameter]
+    public string Class { get; set; } = "";
+
+    /// <summary>The sidebar's foreground in the sidebar; the page's foreground elsewhere.</summary>
+    [Parameter]
+    public string TextClass { get; set; } = "text-sidebar-foreground";
+}

@@ -1,0 +1,22 @@
+@page "/Error"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@using System.Diagnostics
+
+<PageTitle>Error · Great SSO</PageTitle>
+
+<div class="card w-full max-w-md space-y-2 p-6 text-center">
+    <h1 class="text-xl font-semibold">Something went wrong</h1>
+    <p class="text-sm text-muted-foreground">The error is logged with this id. Try again in a moment.</p>
+    @if (RequestId is not null)
+    {
+        <p class="font-mono text-xs text-muted-foreground">@RequestId</p>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId => Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

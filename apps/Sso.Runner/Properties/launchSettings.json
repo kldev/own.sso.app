@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "Sso.Runner": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:6101",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

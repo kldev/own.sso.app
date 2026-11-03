@@ -1,0 +1,211 @@
+/* Great SSO's look (ADR 0016): its tokens on Tailwind CSS v4 with the shadcn-style names the components use.
+   Built by the Tailwind CLI into wwwroot/css/app.css (npm run build:css, run by MSBuild). */
+@import "tailwindcss";
+@source "../Components";
+@source "../Auth/Providers/DevSignIn.cs";
+
+@custom-variant dark (&:is(.dark *));
+
+
+@theme inline {
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-brand: var(--brand);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Great SSO's palette: a teal accent (#0f766e, the logo's) on neutral zinc greys, a light sidebar in the light theme
+   and a deep one in the dark theme. Every text and button pair passes WCAG AA (4.5:1) in both themes: teal-700 on
+   white 5.5:1, white on teal-700 5.5:1, zinc-600 on zinc-50 7.2:1; dark: zinc-950 on teal-400 10.6:1, zinc-400 on
+   zinc-900 7.6:1. */
+:root {
+  --radius: 0.625rem;
+  --brand: #0f766e;
+  --background: #fafafa;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #27272a;
+  --muted: #f4f4f5;
+  --muted-foreground: #52525b;
+  --accent: #f0fdfa;
+  --accent-foreground: #115e59;
+  --destructive: #b91c1c;
+  --success: #15803d;
+  --warning: #b45309;
+  --border: #e4e4e7;
+  --input: #d4d4d8;
+  --ring: #14b8a6;
+  --chart-1: #0f766e;
+  --chart-2: #d97706;
+  --chart-3: #6366f1;
+  --chart-4: #db2777;
+  --chart-5: #65a30d;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #3f3f46;
+  --sidebar-primary: #0f766e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ccfbf1;
+  --sidebar-accent-foreground: #134e4a;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #14b8a6;
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #18181b;
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --primary: #2dd4bf;
+  --primary-foreground: #042f2e;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #134e4a;
+  --accent-foreground: #ccfbf1;
+  --destructive: #f87171;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --border: rgb(255 255 255 / 10%);
+  --input: rgb(255 255 255 / 15%);
+  --ring: #2dd4bf;
+  --chart-1: #2dd4bf;
+  --chart-2: #fbbf24;
+  --sidebar: #111113;
+  --sidebar-foreground: #d4d4d8;
+  --sidebar-primary: #2dd4bf;
+  --sidebar-primary-foreground: #042f2e;
+  --sidebar-accent: #134e4a;
+  --sidebar-accent-foreground: #f0fdfa;
+  --sidebar-border: rgb(255 255 255 / 8%);
+  --sidebar-ring: #2dd4bf;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  /* Native controls (scrollbars, date pickers) follow the theme. */
+  :root { color-scheme: light; }
+  .dark { color-scheme: dark; }
+
+  /* Native select lists: options inherit the control's translucent background and light text, and the browser
+     draws the open list on its own (white on Linux) - unreadable in the dark theme. Give them the popover tokens. */
+  select option,
+  select optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
+
+  /* FocusOnNavigate moves focus to the page title for screen readers; no ring for that programmatic focus. */
+  h1:focus { outline: none; }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* The few building blocks of shadcn/ui, as classes for Razor markup. */
+@layer components {
+  .btn {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none;
+  }
+  .btn-primary { @apply bg-primary text-primary-foreground hover:bg-primary/90; }
+  .btn-secondary { @apply bg-secondary text-secondary-foreground hover:bg-secondary/80; }
+  .btn-ghost { @apply hover:bg-accent hover:text-accent-foreground; }
+  .btn-outline { @apply border border-input bg-transparent hover:bg-accent hover:text-accent-foreground; }
+  .btn-destructive { @apply bg-destructive text-white hover:bg-destructive/90; }
+  .btn-icon { @apply size-9 px-0; }
+  .btn-sm { @apply h-8 px-3 text-xs; }
+
+  .card { @apply rounded-xl border border-border bg-card text-card-foreground shadow-xs; }
+  .card-title { @apply text-sm font-semibold; }
+  .field-label { @apply text-xs text-muted-foreground; }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-md border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap;
+  }
+  .badge-secondary { @apply bg-secondary text-secondary-foreground; }
+  .badge-outline { @apply border-border text-foreground; }
+  .badge-primary { @apply bg-primary/15 text-primary; }
+  .badge-accent { @apply bg-accent text-accent-foreground; }
+  .badge-success { @apply bg-success/15 text-success; }
+  .badge-warning { @apply bg-warning/20 text-foreground; }
+  .badge-destructive { @apply bg-destructive/15 text-destructive; }
+
+  .input {
+    @apply flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30;
+  }
+  .label { @apply text-sm leading-none font-medium; }
+  .menu-item {
+    @apply flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground [&_svg]:size-4;
+  }
+
+  .tabs { @apply inline-flex h-9 items-center rounded-lg bg-muted p-[3px] text-muted-foreground; }
+  .tab {
+    @apply inline-flex h-full items-center justify-center rounded-md px-3 text-sm font-medium whitespace-nowrap transition-colors hover:text-foreground;
+  }
+  .tab-active { @apply bg-background text-foreground shadow-sm dark:border dark:border-input dark:bg-input/30; }
+
+  .eyebrow { @apply text-xs font-semibold tracking-wider text-primary uppercase; }
+  .table { @apply w-full text-sm; }
+  .table th { @apply border-b border-border px-3 py-2 text-left text-xs font-semibold text-muted-foreground; }
+  .table td { @apply border-b border-border px-3 py-2.5; }
+  .table tbody tr:hover { @apply bg-muted/50; }
+  .page-title { @apply text-2xl font-semibold tracking-tight md:text-3xl; }
+}

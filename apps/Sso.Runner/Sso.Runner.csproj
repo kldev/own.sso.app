@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- The runner (ADR 0010): what Great SSO does after the request - hands messaging.outbox_messages on to RabbitMQ
+       through Wolverine and handles them. Web SDK only for /health and /health/ready; no other endpoint. -->
+  <ItemGroup>
+    <PackageReference Include="JetBrains.Annotations" />
+    <PackageReference Include="WolverineFx" />
+    <PackageReference Include="WolverineFx.Postgresql" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
+    <!-- Wolverine compiles its handler code at start; without it the host refuses to run. -->
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../libs/Sso.Data/Sso.Data.csproj" />
+    <ProjectReference Include="../../libs/Sso.Messaging.Contracts/Sso.Messaging.Contracts.csproj" />
+    <ProjectReference Include="../../libs/Sso.Observability/Sso.Observability.csproj" />
+  </ItemGroup>
+</Project>

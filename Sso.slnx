@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/apps/">
+    <Project Path="apps/Sso.Api/Sso.Api.csproj" />
+    <Project Path="apps/Sso.ApiClient/Sso.ApiClient.csproj" />
+    <Project Path="apps/Sso.DbMigrator/Sso.DbMigrator.csproj" />
+    <Project Path="apps/Sso.Runner/Sso.Runner.csproj" />
+  </Folder>
+  <Folder Name="/libs/">
+    <Project Path="libs/Sso.Data/Sso.Data.csproj" />
+    <Project Path="libs/Sso.Messaging.Contracts/Sso.Messaging.Contracts.csproj" />
+    <Project Path="libs/Sso.Observability/Sso.Observability.csproj" />
+    <Project Path="libs/Sso.Observability.AspNetCore/Sso.Observability.AspNetCore.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Sso.SampleClient/Sso.SampleClient.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sso.Tests/Sso.Tests.csproj" />
+  </Folder>
+</Solution>

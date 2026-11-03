@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Client of the REST API: Generated/ comes from openapi.json (the API's OpenAPI document) through Kiota
+       (./generate.sh) and is never edited by hand. The panel has no data types of its own - all come from the API. -->
+  <PropertyGroup>
+    <!-- Kiota's generated code does not follow the analyzers of hand-written code. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Kiota.Bundle" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,14 @@
+{
+  "name": "sso-web-styles",
+  "private": true,
+  "description": "Tailwind CSS build of the Blazor front only - no JavaScript bundle. Run through MSBuild (Sso.Api.csproj).",
+  "scripts": {
+    "build:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --minify",
+    "watch:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.3",
+    "lucide-static": "^1.61.0",
+    "tailwindcss": "4.3.3"
+  }
+}

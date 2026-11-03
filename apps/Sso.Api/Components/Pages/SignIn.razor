@@ -1,0 +1,87 @@
+@page "/sign-in"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@using Sso.Api.Auth.Providers
+@using Sso.Api.Oidc
+@inject ProviderCatalog Providers
+@inject ClientStore Clients
+
+<PageTitle>Sign in · Great SSO</PageTitle>
+
+<div class="w-full max-w-sm space-y-6">
+    <div class="flex flex-col items-center gap-4 text-center">
+        <BrandMark TextClass="text-foreground" />
+        <div class="space-y-1.5">
+            <h1 class="text-2xl font-semibold">Sign in</h1>
+            @if (_client is not null)
+            {
+                <p class="text-sm text-muted-foreground">to continue to <span class="font-medium text-foreground">@_client.Name</span></p>
+            }
+            else
+            {
+                <p class="text-sm text-muted-foreground">One sign-in for all your team's applications.</p>
+            }
+        </div>
+    </div>
+
+    <div class="card space-y-4 p-6">
+        @if (Message is { } message)
+        {
+            <p class="@(Error == "expired" ? "rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground" : "rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive")" role="alert">@message</p>
+        }
+        @if (_shown.Count == 0)
+        {
+            <p class="text-sm text-muted-foreground" data-testid="no-providers">
+                No sign-in provider is configured@(_client is null ? "" : " for this application"). Ask your SSO admin.
+            </p>
+        }
+        else
+        {
+            @* Plain links: /auth/external/{provider} sends the browser to the provider (ExternalSignInEndpoints). *@
+            <div class="flex flex-col gap-2.5">
+                @foreach (var provider in _shown)
+                {
+                    <a href="@($"auth/external/{provider.Key}?returnUrl={Uri.EscapeDataString(_returnUrl)}")"
+                       class="btn btn-outline h-11 w-full justify-center gap-3 bg-card text-[15px] font-medium"
+                       data-provider="@provider.Key">
+                        <ProviderLogo Provider="@provider.Key" />
+                        <span>Sign in with @provider.DisplayName</span>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+
+    <p class="text-center text-xs text-muted-foreground">No entry yet? Ask your SSO admin to add one.</p>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? Error { get; set; }
+
+    private string _returnUrl = "/admin";
+    private OidcClient? _client;
+    private IReadOnlyList<Provider> _shown = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _returnUrl = AuthEndpoints.LocalUrl(ReturnUrl);
+        _client = await Clients.FromReturnUrlAsync(_returnUrl, CancellationToken.None);
+        // Configured in SSO, and allowed by the application the sign-in is for (the panel allows every one).
+        _shown = Providers.Configured.Where(p => _client is null || _client.Providers.Contains(p.Key)).ToList();
+    }
+
+    private string? Message =>
+        Error switch
+        {
+            null or "" => null,
+            "provider" => "The sign-in at the provider did not finish. Try again.",
+            "throttled" => "Too many attempts. Wait a minute and try again.",
+            "expired" => "Your session has ended. Sign in again.",
+            _ => "Sign-in failed. Try again.",
+        };
+}

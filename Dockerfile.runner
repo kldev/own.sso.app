@@ -1,0 +1,36 @@
+# The runner (ADR 0010): the outbox relay and the handlers (integration events between modules) - Wolverine on
+# RabbitMQ. No port for people: /health and /health/ready on 8080 inside the network only.
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG CONFIGURATION=Release
+# The Husky target must not run in the image (no .git, no tools).
+ENV HUSKY=0
+WORKDIR /src
+
+# 1) Only what restore needs - cached until dependencies change. Keep the list the closure of Sso.Runner's references.
+COPY global.json Directory.Build.props Directory.Packages.props nuget.config ./
+COPY apps/Sso.Runner/Sso.Runner.csproj apps/Sso.Runner/
+COPY libs/Sso.Data/Sso.Data.csproj libs/Sso.Data/
+COPY libs/Sso.Messaging.Contracts/Sso.Messaging.Contracts.csproj libs/Sso.Messaging.Contracts/
+COPY libs/Sso.Observability/Sso.Observability.csproj libs/Sso.Observability/
+RUN dotnet restore apps/Sso.Runner/Sso.Runner.csproj
+
+# 2) Sources and publish.
+COPY libs/ libs/
+COPY apps/Sso.Runner/ apps/Sso.Runner/
+RUN dotnet publish apps/Sso.Runner/Sso.Runner.csproj \
+    --configuration $CONFIGURATION \
+    --no-restore \
+    --output /app/publish \
+    /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build --chown=$APP_UID /app/publish .
+
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+
+USER $APP_UID
+
+ENTRYPOINT ["dotnet", "Sso.Runner.dll"]

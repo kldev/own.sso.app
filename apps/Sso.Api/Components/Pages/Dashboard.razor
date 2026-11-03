@@ -1,0 +1,39 @@
+@page "/admin"
+@attribute [Authorize(Policy = AuthPolicies.Admin)]
+
+<PageTitle>Dashboard · Great SSO</PageTitle>
+
+<PageHeader Eyebrow="Dashboard" Title="@($"Welcome, {Labels.FirstName(Me.DisplayName)}")"
+            Description="The SSO admin's panel: the people who may sign in, the applications that use SSO, and every sign-in." />
+
+@* One card per module of the menu (docs/domain.md). *@
+<div class="grid gap-4 lg:grid-cols-3">
+    @foreach (var item in NavItems.Groups.SelectMany(g => g.Items).Where(i => i.Context is not null))
+    {
+        <a href="@item.Path" class="card group flex gap-4 p-5 transition-colors hover:border-primary/40">
+            <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                <Icon Name="@item.Icon" Class="size-5" />
+            </span>
+            <span class="min-w-0">
+                <span class="block font-semibold">@item.Label</span>
+                <span class="mt-0.5 block text-xs text-muted-foreground">@Describe(item.Context)</span>
+            </span>
+        </a>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    private PlatformMeRow Me { get; set; } = null!;
+
+    private static string Describe(string? context) =>
+        context switch
+        {
+            "people" => "Who may sign in, with which accounts",
+            "clients" => "Applications that sign people in through SSO",
+            "activity" => "Sessions and the full log of sign-ins and tokens",
+            "platform" => "Tokens for Claude Code to run this panel through MCP",
+            "marketing" => "E-mails to a list of addresses, one e-mail each",
+            _ => "",
+        };
+}

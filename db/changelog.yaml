@@ -1,0 +1,8 @@
+# Master changelog: includeAll in path order - 2026/1-ddl, 2026/2-data, 2027/... The DDL is exported from the EF Core
+# model (db/scripts/export-ef-migration.sh, ADR 0003); roles, grants and Wolverine's storage are written by hand.
+databaseChangeLog:
+  - includeAll:
+      path: changelog/
+      relativeToChangelogFile: true
+      endsWithFilter: .sql
+      errorIfMissingOrEmpty: true

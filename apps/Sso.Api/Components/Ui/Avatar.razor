@@ -1,0 +1,9 @@
+<span class="@($"flex shrink-0 items-center justify-center rounded-full font-semibold {Class}")">@Labels.Initials(Name)</span>
+
+@code {
+    [Parameter]
+    public string? Name { get; set; }
+
+    [Parameter]
+    public string Class { get; set; } = "size-10 bg-muted text-xs text-muted-foreground";
+}
