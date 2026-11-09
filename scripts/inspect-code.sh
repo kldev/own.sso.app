@@ -16,7 +16,7 @@ if ! command -v jb >/dev/null 2>&1; then
 fi
 
 if [[ "${1:-}" != "--no-build" ]]; then
-  dotnet build Sso.slnx --nologo -v q -m:2
+  dotnet build Sso.slnx --nologo -v q
 fi
 
 report="$(mktemp)"

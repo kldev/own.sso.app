@@ -28,9 +28,9 @@ dotnet csharpier check .              # formatting (pre-commit)
 cd e2e && npm install && npm run screenshots   # Playwright walk -> docs/screenshots (needs the host with the demo seed)
 ```
 
-Tests: xUnit v3 on Microsoft.Testing.Platform, Testcontainers (PostgreSQL 18 + Liquibase from `db/`). On a 16 GB laptop:
-build once with `-m:2`, then `dotnet build-server shutdown`, run only the touched group (`./verify <group>` or
-`-- --filter-class Sso.Tests.<Class>`), `DOTNET_gcServer=0`; never the whole suite at once.
+Tests: xUnit v3 on Microsoft.Testing.Platform, Testcontainers (PostgreSQL 18 + Liquibase from `db/`). While working,
+run the touched group (`./verify <group>` or `-- --filter-class Sso.Tests.<Class>`); before a commit or PR,
+`./verify all`. The machines have 32 GB: default build and test settings.
 
 ## Architecture
 

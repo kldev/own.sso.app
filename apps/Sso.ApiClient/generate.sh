@@ -14,7 +14,7 @@ cd "$(dirname "$0")"
 if [[ "${1:-}" != "--no-doc" ]]; then
   # The document is made by starting the host's configuration without serving: Development settings, no seed.
   ASPNETCORE_ENVIRONMENT=Development Seed__Enabled=false \
-    dotnet build ../Sso.Api -m:2 --nologo -v q -p:GenerateOpenApi=true >/dev/null
+    dotnet build ../Sso.Api --nologo -v q -p:GenerateOpenApi=true >/dev/null
   python3 -m json.tool openapi.json > openapi.json.tmp && mv openapi.json.tmp openapi.json
   echo "openapi.json written from apps/Sso.Api"
 fi

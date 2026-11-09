@@ -11,7 +11,6 @@ and a person entered for the account used - or, locally, the development sign-in
 ## Run
 
 ```bash
-free -h                                   # the suite takes 1-2 GB (Java + MongoDB): nothing else heavy meanwhile
 ./tools/conformance/register-clients.sh   # two clients (the plan needs two), PKCE off for them only; prints the secrets
 ./tools/conformance/run.sh                # clones the suite (once, outside the repo), starts it, prints the address
 # https://localhost.emobix.co.uk:8443 -> Create a new test plan -> the plan above, "client_secret_basic", "static client"

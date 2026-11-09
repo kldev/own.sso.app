@@ -14,7 +14,7 @@
 #   seed      the seed on start                                     (trait verify=seed)
 #   all       everything above
 # Tests need Docker (Testcontainers: PostgreSQL 18 + Liquibase from db/); the first run builds the Liquibase image.
-# One heavy process at a time (16 GB laptop): build with -m:2, workstation GC.
+# Machines have 32 GB: the default build and test settings, no throttling.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -46,7 +46,6 @@ fi
 filter=()
 [[ "$name" == "all" ]] || filter=(--filter-trait "verify=$name")
 
-dotnet build tests/Sso.Tests -m:2 --nologo -v q
-dotnet build-server shutdown >/dev/null 2>&1 || true
+dotnet build tests/Sso.Tests --nologo -v q
 # Exit code 8 of the test platform = no test matched: a group without tests is a failure, not a pass.
-DOTNET_gcServer=0 dotnet test --project tests/Sso.Tests --no-build -- "${filter[@]}"
+dotnet test --project tests/Sso.Tests --no-build -- "${filter[@]}"

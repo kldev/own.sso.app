@@ -20,7 +20,7 @@ slug="${2:?usage: export-ef-migration.sh <MigrationName> <slug>}"
 
 ef() { dotnet tool run dotnet-ef "$@" --project libs/Sso.Data --startup-project libs/Sso.Data; }
 
-dotnet build libs/Sso.Data -m:2 --nologo -v q >/dev/null
+dotnet build libs/Sso.Data --nologo -v q >/dev/null
 ids=$(ef migrations list --no-connect --no-build --json 2>/dev/null \
     | python3 -c 'import json,sys; print("\n".join(m["id"] for m in json.load(sys.stdin)))')
 id=$(grep -E "_${name}\$" <<<"$ids" || true)

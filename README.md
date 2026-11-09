@@ -270,7 +270,7 @@ Everything is there: people, applications, sessions, the log, a mailing.
 ```bash
 ./verify schema     # the database = the EF model, no logic in the database, roles
 ./verify oidc       # the OpenID Connect provider, rule by rule
-./verify all        # every group (needs Docker; heavy - one group at a time on a small machine)
+./verify all        # every group (needs Docker)
 ```
 
 Groups: `schema`, `platform`, `web`, `sign-in`, `sessions`, `people`, `clients`, `activity`, `marketing`, `oidc`,
